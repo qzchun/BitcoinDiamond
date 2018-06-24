@@ -6,6 +6,8 @@
 #define BITCOIN_WALLET_COINCONTROL_H
 
 #include "primitives/transaction.h"
+#include "policy/fees.h"
+#include "wallet/wallet.h"
 
 /** Coin Control Features. */
 class CCoinControl
@@ -24,6 +26,10 @@ public:
     CFeeRate nFeeRate;
     //! Override the default confirmation target, 0 = use default
     int nConfirmTarget;
+    //! Signal BIP-125 replace by fee.
+    bool signalRbf;
+    //! Fee estimation mode to control arguments to estimateSmartFee
+    FeeEstimateMode m_fee_mode;
 
     CCoinControl()
     {
@@ -40,6 +46,8 @@ public:
         nFeeRate = CFeeRate(0);
         fOverrideFeeRate = false;
         nConfirmTarget = 0;
+        signalRbf = fWalletRbf;
+        m_fee_mode = FeeEstimateMode::UNSET;
     }
 
     bool HasSelected() const

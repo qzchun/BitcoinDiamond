@@ -59,6 +59,15 @@ class CTxMemPool;
  * they've been outstanding.
  */
 
+/* Used to determine type of fee estimation requested */
+enum class FeeEstimateMode {
+    UNSET,        //! Use default settings based on other criteria
+    ECONOMICAL,   //! Force estimateSmartFee to use non-conservative estimates
+    CONSERVATIVE, //! Force estimateSmartFee to use conservative estimates
+};
+
+bool FeeModeFromString(const std::string& mode_string, FeeEstimateMode& fee_estimate_mode);
+
 /**
  * We will instantiate an instance of this class to track transactions that were
  * included in a block. We will lump transactions into a bucket according to their
