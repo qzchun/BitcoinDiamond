@@ -6,9 +6,9 @@
 #ifndef BITCOIN_AMOUNT_H
 #define BITCOIN_AMOUNT_H
 
+#include <stdlib.h>
 #include "serialize.h"
 
-#include <stdlib.h>
 #include <string>
 
 /** Amount in satoshis (Can be negative) */
@@ -18,8 +18,6 @@ static const CAmount COIN_SCALE = 10;
 
 static const CAmount COIN = 100000000 / COIN_SCALE;
 static const CAmount CENT = 1000000 / COIN_SCALE;
-
-extern const std::string CURRENCY_UNIT;
 
 /** No amount larger than this (in satoshi) is valid.
  *
@@ -32,6 +30,10 @@ extern const std::string CURRENCY_UNIT;
  * */
 static const CAmount MAX_MONEY = 21000000 * COIN * COIN_SCALE;
 inline bool MoneyRange(const CAmount& nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
+
+
+
+extern const std::string CURRENCY_UNIT;
 
 /**
  * Fee rate in satoshis per kilobyte: CAmount / kB
@@ -60,6 +62,7 @@ public:
     friend bool operator==(const CFeeRate& a, const CFeeRate& b) { return a.nSatoshisPerK == b.nSatoshisPerK; }
     friend bool operator<=(const CFeeRate& a, const CFeeRate& b) { return a.nSatoshisPerK <= b.nSatoshisPerK; }
     friend bool operator>=(const CFeeRate& a, const CFeeRate& b) { return a.nSatoshisPerK >= b.nSatoshisPerK; }
+    friend bool operator!=(const CFeeRate& a, const CFeeRate& b) { return a.nSatoshisPerK != b.nSatoshisPerK; }
     CFeeRate& operator+=(const CFeeRate& a) { nSatoshisPerK += a.nSatoshisPerK; return *this; }
     std::string ToString() const;
 

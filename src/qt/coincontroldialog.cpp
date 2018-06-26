@@ -501,6 +501,8 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
         else nBytesInputs += 148;
     }
 
+//    bool conservative_estimate = CalculateEstimateType(FeeEstimateMode::UNSET, coinControl->signalRbf);
+
     // calculation
     if (nQuantity > 0)
     {

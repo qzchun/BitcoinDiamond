@@ -770,6 +770,8 @@ src/netmessagemaker.h
 src/noui.cpp
 src/noui.h
 src/obj/build.h
+src/policy/feerate.cpp
+src/policy/feerate.h
 src/policy/fees.cpp
 src/policy/fees.h
 src/policy/policy.cpp

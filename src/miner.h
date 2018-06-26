@@ -7,6 +7,7 @@
 #define BITCOIN_MINER_H
 
 #include "primitives/block.h"
+#include "policy/feerate.h"
 #include "txmempool.h"
 
 #include <stdint.h>

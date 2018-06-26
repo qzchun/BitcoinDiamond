@@ -18,6 +18,7 @@
 #include "netmessagemaker.h"
 #include "netbase.h"
 #include "policy/fees.h"
+#include "policy/feerate.h"
 #include "policy/policy.h"
 #include "primitives/block.h"
 #include "primitives/transaction.h"

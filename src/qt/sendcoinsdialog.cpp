@@ -12,6 +12,7 @@
 #include "guiutil.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
+#include "policy/feerate.h"
 #include "sendcoinsentry.h"
 #include "walletmodel.h"
 

@@ -13,6 +13,20 @@
 #include "txmempool.h"
 #include "util.h"
 
+std::string StringForFeeEstimateHorizon(FeeEstimateHorizon horizon) {
+    static const std::map<FeeEstimateHorizon, std::string> horizon_strings = {
+        {FeeEstimateHorizon::SHORT_HALFLIFE, "short"},
+        {FeeEstimateHorizon::MED_HALFLIFE, "medium"},
+        {FeeEstimateHorizon::LONG_HALFLIFE, "long"},
+    };
+    auto horizon_string = horizon_strings.find(horizon);
+
+    if (horizon_string == horizon_strings.end()) return "unknown";
+
+    return horizon_string->second;
+}
+
+
 bool FeeModeFromString(const std::string& mode_string, FeeEstimateMode& fee_estimate_mode) {
     static const std::map<std::string, FeeEstimateMode> fee_modes = {
         {"UNSET", FeeEstimateMode::UNSET},
@@ -305,13 +319,31 @@ bool CBlockPolicyEstimator::removeTx(uint256 hash)
 {
     std::map<uint256, TxStatsInfo>::iterator pos = mapMemPoolTxs.find(hash);
     if (pos != mapMemPoolTxs.end()) {
-        feeStats.removeTx(pos->second.blockHeight, nBestSeenHeight, pos->second.bucketIndex);
+        feeStats->removeTx(pos->second.blockHeight, nBestSeenHeight, pos->second.bucketIndex);
         mapMemPoolTxs.erase(hash);
         return true;
     } else {
         return false;
     }
 }
+
+//CBlockPolicyEstimator::CBlockPolicyEstimator()
+//    : nBestSeenHeight(0), firstRecordedHeight(0), historicalFirst(0), historicalBest(0), trackedTxs(0), untrackedTxs(0)
+//{
+//    static_assert(MIN_BUCKET_FEERATE > 0, "Min feerate must be nonzero");
+//    size_t bucketIndex = 0;
+//    for (double bucketBoundary = MIN_BUCKET_FEERATE; bucketBoundary <= MAX_BUCKET_FEERATE; bucketBoundary *= FEE_SPACING, bucketIndex++) {
+//        buckets.push_back(bucketBoundary);
+//        bucketMap[bucketBoundary] = bucketIndex;
+//    }
+//    buckets.push_back(INF_FEERATE);
+//    bucketMap[INF_FEERATE] = bucketIndex;
+//    assert(bucketMap.size() == buckets.size());
+
+//    feeStats = new TxConfirmStats(buckets, bucketMap, MED_BLOCK_PERIODS, MED_DECAY, MED_SCALE);
+//    shortStats = new TxConfirmStats(buckets, bucketMap, SHORT_BLOCK_PERIODS, SHORT_DECAY, SHORT_SCALE);
+//    longStats = new TxConfirmStats(buckets, bucketMap, LONG_BLOCK_PERIODS, LONG_DECAY, LONG_SCALE);
+//}
 
 CBlockPolicyEstimator::CBlockPolicyEstimator(const CFeeRate& _minRelayFee)
     : nBestSeenHeight(0), trackedTxs(0), untrackedTxs(0)
@@ -323,7 +355,7 @@ CBlockPolicyEstimator::CBlockPolicyEstimator(const CFeeRate& _minRelayFee)
         vfeelist.push_back(bucketBoundary);
     }
     vfeelist.push_back(INF_FEERATE);
-    feeStats.Initialize(vfeelist, MAX_BLOCK_CONFIRMS, DEFAULT_DECAY);
+    feeStats->Initialize(vfeelist, MAX_BLOCK_CONFIRMS, DEFAULT_DECAY);
 }
 
 void CBlockPolicyEstimator::processTransaction(const CTxMemPoolEntry& entry, bool validFeeEstimate)
@@ -356,7 +388,7 @@ void CBlockPolicyEstimator::processTransaction(const CTxMemPoolEntry& entry, boo
     CFeeRate feeRate(entry.GetFee(), entry.GetTxSize());
 
     mapMemPoolTxs[hash].blockHeight = txHeight;
-    mapMemPoolTxs[hash].bucketIndex = feeStats.NewTx(txHeight, (double)feeRate.GetFeePerK());
+    mapMemPoolTxs[hash].bucketIndex = feeStats->NewTx(txHeight, (double)feeRate.GetFeePerK());
 }
 
 bool CBlockPolicyEstimator::processBlockTx(unsigned int nBlockHeight, const CTxMemPoolEntry* entry)
@@ -380,7 +412,7 @@ bool CBlockPolicyEstimator::processBlockTx(unsigned int nBlockHeight, const CTxM
     // Feerates are stored and reported as BTC-per-kb:
     CFeeRate feeRate(entry->GetFee(), entry->GetTxSize());
 
-    feeStats.Record(blocksToConfirm, (double)feeRate.GetFeePerK());
+    feeStats->Record(blocksToConfirm, (double)feeRate.GetFeePerK());
     return true;
 }
 
@@ -402,7 +434,7 @@ void CBlockPolicyEstimator::processBlock(unsigned int nBlockHeight,
     nBestSeenHeight = nBlockHeight;
 
     // Clear the current block state and update unconfirmed circular buffer
-    feeStats.ClearCurrent(nBlockHeight);
+    feeStats->ClearCurrent(nBlockHeight);
 
     unsigned int countedTxs = 0;
     // Repopulate the current block states
@@ -412,7 +444,7 @@ void CBlockPolicyEstimator::processBlock(unsigned int nBlockHeight,
     }
 
     // Update all exponential averages with the current block state
-    feeStats.UpdateMovingAverages();
+    feeStats->UpdateMovingAverages();
 
     LogPrint(BCLog::ESTIMATEFEE, "Blockpolicy after updating estimates for %u of %u txs in block, since last block %u of %u tracked, new mempool map size %u\n",
              countedTxs, entries.size(), trackedTxs, trackedTxs + untrackedTxs, mapMemPoolTxs.size());
@@ -425,10 +457,10 @@ CFeeRate CBlockPolicyEstimator::estimateFee(int confTarget)
 {
     // Return failure if trying to analyze a target we're not tracking
     // It's not possible to get reasonable estimates for confTarget of 1
-    if (confTarget <= 1 || (unsigned int)confTarget > feeStats.GetMaxConfirms())
+    if (confTarget <= 1 || (unsigned int)confTarget > feeStats->GetMaxConfirms())
         return CFeeRate(0);
 
-    double median = feeStats.EstimateMedianVal(confTarget, SUFFICIENT_FEETXS, MIN_SUCCESS_PCT, true, nBestSeenHeight);
+    double median = feeStats->EstimateMedianVal(confTarget, SUFFICIENT_FEETXS, MIN_SUCCESS_PCT, true, nBestSeenHeight);
 
     if (median < 0)
         return CFeeRate(0);
@@ -436,12 +468,31 @@ CFeeRate CBlockPolicyEstimator::estimateFee(int confTarget)
     return CFeeRate(median);
 }
 
+unsigned int CBlockPolicyEstimator::HighestTargetTracked(FeeEstimateHorizon horizon) const
+{
+    switch (horizon) {
+    case FeeEstimateHorizon::SHORT_HALFLIFE: {
+        return shortStats->GetMaxConfirms();
+    }
+    case FeeEstimateHorizon::MED_HALFLIFE: {
+        return feeStats->GetMaxConfirms();
+    }
+    case FeeEstimateHorizon::LONG_HALFLIFE: {
+        return longStats->GetMaxConfirms();
+    }
+    default: {
+        throw std::out_of_range("CBlockPoicyEstimator::HighestTargetTracked unknown FeeEstimateHorizon");
+    }
+    }
+}
+
+
 CFeeRate CBlockPolicyEstimator::estimateSmartFee(int confTarget, int *answerFoundAtTarget, const CTxMemPool& pool)
 {
     if (answerFoundAtTarget)
         *answerFoundAtTarget = confTarget;
     // Return failure if trying to analyze a target we're not tracking
-    if (confTarget <= 0 || (unsigned int)confTarget > feeStats.GetMaxConfirms())
+    if (confTarget <= 0 || (unsigned int)confTarget > feeStats->GetMaxConfirms())
         return CFeeRate(0);
 
     // It's not possible to get reasonable estimates for confTarget of 1
@@ -449,8 +500,8 @@ CFeeRate CBlockPolicyEstimator::estimateSmartFee(int confTarget, int *answerFoun
         confTarget = 2;
 
     double median = -1;
-    while (median < 0 && (unsigned int)confTarget <= feeStats.GetMaxConfirms()) {
-        median = feeStats.EstimateMedianVal(confTarget++, SUFFICIENT_FEETXS, MIN_SUCCESS_PCT, true, nBestSeenHeight);
+    while (median < 0 && (unsigned int)confTarget <= feeStats->GetMaxConfirms()) {
+        median = feeStats->EstimateMedianVal(confTarget++, SUFFICIENT_FEETXS, MIN_SUCCESS_PCT, true, nBestSeenHeight);
     }
 
     if (answerFoundAtTarget)
@@ -488,14 +539,14 @@ double CBlockPolicyEstimator::estimateSmartPriority(int confTarget, int *answerF
 void CBlockPolicyEstimator::Write(CAutoFile& fileout)
 {
     fileout << nBestSeenHeight;
-    feeStats.Write(fileout);
+    feeStats->Write(fileout);
 }
 
 void CBlockPolicyEstimator::Read(CAutoFile& filein, int nFileVersion)
 {
     int nFileBestSeenHeight;
     filein >> nFileBestSeenHeight;
-    feeStats.Read(filein);
+    feeStats->Read(filein);
     nBestSeenHeight = nFileBestSeenHeight;
     if (nFileVersion < 139900) {
         TxConfirmStats priStats;

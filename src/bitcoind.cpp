@@ -13,6 +13,7 @@
 #include "rpc/server.h"
 #include "init.h"
 #include "noui.h"
+#include "policy/feerate.h"
 #include "scheduler.h"
 #include "util.h"
 #include "httpserver.h"
